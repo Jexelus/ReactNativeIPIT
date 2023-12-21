@@ -1,118 +1,193 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import * as React from 'react';
+import { Text, View, Button, Alert, TextInput, SafeAreaView } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import SelectDropdown from 'react-native-select-dropdown'
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+// export const saveDeviceData = async (key, data) => {
+//   try {
+//       await AsyncStorage.setItem(key, JSON.stringify(data));
+//   } catch (e) {
+//     console.log(`Error saving data for key ${key}`, data);
+//     throw e;
+//   }
+// };
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+// /*
+// * @param key {String} Key identifier for data to load
+// */
+// export const loadDeviceData = async (key) => {
+//   try {
+//       return JSON.parse(await AsyncStorage.getItem(key))
+//   } catch (e) {
+//     console.log(`Error loading data for key ${key}`);
+//     throw e;
+//   }
+// };
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+async function getCache(key){
+    try {
+        let value = await AsyncStorage.getItem(key).then(res => {
+            return JSON.parse(res)
+        });
+        console.log('||| Value!!! ->', value)
+        return value;
+    }
+    catch(e){
+        return null;
+    }
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+}
+
+function SettingsScreen() {
+
+  const Courses = ["1", "2", "3", "4"]
+  const Groups = ["MOIS", "FIIT", "PIVZ"]
+  const pocket = {
+    backend_address:"none",
+    course:"none",
+    group: "none"
+  }
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+       <View style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            }}>
+        <View>
+        <Text style={{
+                    fontWeight: "bold",
+                    color:"black",
+                    marginBottom:30
+        }}>Сервер парсинга расписания (Временное решение)</Text>
+        </View>
+        <View style={{
+        marginBottom:20
+        }}>
+            <TextInput
+                style = {{
+                    padding: 10,
+                    backgroundColor:'grey',
+                    width: 200
+                }}
+                placeholder="Server address"
+                onChangeText = {text => {
+                        pocket.backend_address = text
+                    }
+                }
+            />
+        </View>
+        <Text style={{
+            fontWeight: "bold",
+            color:"black",
+            marginBottom:30
+
+        }}> Изменить группу </Text>
+        <View style={{ marginBottom:30 }}>
+            <SelectDropdown
+                style={{
+                    marginBottom:30
+                }}
+                defaultButtonText={"Выберете курс"}
+                data = {Courses}
+                onSelect={(selectedItem, index) => {
+                    if (selectedItem != "3"){
+                      Alert.alert("Данный курс не доступен", "Парсер для данного курса не прописан, расписание не изменится")
+                    }
+                    pocket.course = selectedItem
+                }}
+            />
+        </View>
+        <View style={{ marginBottom:30 }}>
+            <SelectDropdown
+            defaultButtonText={"Выберете группу"}
+            data = {Groups}
+            onSelect={(selectedItem, index) => {
+              if (selectedItem != "MOIS"){
+                Alert.alert("Данная группа не доступна", "Парсер для данной группы не прописан, расписание не изменится")
+              }
+              pocket.group = selectedItem
+          }}
+            />
+        </View>
+        <Button
+         title="Обновить"
+         onPress={ async() => {
+            if ((pocket.backend_address != 'none') && (pocket.group != 'none') && (pocket.course != 'none')){
+                AsyncStorage.setItem('pocket', JSON.stringify(pocket));
+            }
+            pkg = await getCache('pocket')
+            console.log(pkg.backend_address + '/' + pkg.course + '/' + pkg.group)
+            schedule = await axios.get(pkg.backend_address + '/' + pkg.course + '/' + pkg.group)
+                .then(response => {
+                    return response.data
+                })
+                .catch(error => {
+                    console.log('Error: ', error)
+                })
+            await AsyncStorage.setItem('schedule', JSON.stringify(schedule.msg))
+            console.log(await getCache('schedule'))
+         }
+       }/>
+       </View>
+  );
+}
+
+async function ScheduleScreen() {
+  data = await getCache('schedule')
+  if (schedule != null){
+    return(
+        <View>
+            <Text>
+                Нету кешированного расписания
+            </Text>
+        </View>
+    );
+  }
+
+  return (
+    <View>
+
     </View>
   );
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const Tab = createBottomTabNavigator();
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
+function MyTabs() {
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <Tab.Navigator>
+      <Tab.Screen name="Settings"
+        component={ SettingsScreen }
+        options={{
+            tabBarLable: 'Settings',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="account" color={color} size={size} />
+            ),
+        }}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <Tab.Screen name="Schedule"
+      component={ ScheduleScreen }
+      options={{
+            tabBarLable: 'Schedule',
+            tabBarIcon: ({ color, size }) => (
+                <MaterialCommunityIcons name="home" color={color} size={size} />
+            ),
+      }}
+      />
+
+    </Tab.Navigator>
   );
 }
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
-
-export default App;
+export default function App() {
+  return (
+    <NavigationContainer>
+      <MyTabs component={MyTabs}/>
+    </NavigationContainer>
+  );
+}
